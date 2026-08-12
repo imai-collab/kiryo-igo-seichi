@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SavedEndgame, StoneType } from '../types';
 import { PRESET_ENDGAMES } from '../lib/goSeichiEngine';
-import { Bookmark, Plus, Trash2, Play, Grid, Layers, Sparkles } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Play, Grid, Layers, Sparkles, Download, Upload } from 'lucide-react';
 import { BoardImageUploader } from './BoardImageUploader';
 
 interface SavedEndgamesProps {
@@ -30,6 +30,7 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
   const [deletedPresetIds, setDeletedPresetIds] = useState<string[]>([]);
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -101,6 +102,83 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
     }
   };
 
+  // Export all saved items (and active presets) to JSON file
+  const handleExportJSON = () => {
+    const activePresets = PRESET_ENDGAMES.filter(p => !deletedPresetIds.includes(p.id));
+    const allItems = [...userSaved, ...activePresets];
+    if (allItems.length === 0) {
+      alert("保存されている終局図データがありません。");
+      return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allItems, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `go_endgame_list_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Export a single item
+  const handleExportSingleItem = (item: SavedEndgame) => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(item, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    const safeName = item.name.replace(/[/\\?%*:|"<>]/g, '_');
+    downloadAnchor.setAttribute("download", `endgame_${safeName}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Import JSON file
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        const itemsToImport: any[] = Array.isArray(parsed) ? parsed : [parsed];
+
+        const validItems: SavedEndgame[] = [];
+        for (const item of itemsToImport) {
+          if (item && typeof item === 'object' && Array.isArray(item.grid) && item.grid.length > 0) {
+            validItems.push({
+              id: `imported-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              name: item.name || '外部読込データ',
+              size: item.size || item.grid.length,
+              grid: item.grid,
+              blackPrisoners: typeof item.blackPrisoners === 'number' ? item.blackPrisoners : 0,
+              whitePrisoners: typeof item.whitePrisoners === 'number' ? item.whitePrisoners : 0,
+              komi: typeof item.komi === 'number' ? item.komi : 6.5,
+              createdAt: item.createdAt || new Date().toLocaleDateString('ja-JP'),
+              description: item.description,
+            });
+          }
+        }
+
+        if (validItems.length === 0) {
+          alert('有効な終局図データが見つかりませんでした。正しいJSONファイルを選択してください。');
+          return;
+        }
+
+        const updatedUserSaved = [...validItems, ...userSaved];
+        setUserSaved(updatedUserSaved);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserSaved));
+        alert(`${validItems.length} 件の終局図データを読み込み、保存リストに追加しました。`);
+      } catch (err) {
+        console.error("Failed to parse JSON file", err);
+        alert('ファイルの読み込みに失敗しました。JSONフォーマットをご確認ください。');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const activePresets = PRESET_ENDGAMES.filter(p => !deletedPresetIds.includes(p.id));
 
   return (
@@ -122,7 +200,33 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* File Export/Import Buttons */}
+          <button
+            onClick={handleExportJSON}
+            className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
+            title="リスト全体をJSONファイルとして保存"
+          >
+            <Download className="w-3.5 h-3.5" />
+            ファイル出力
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
+            title="JSONファイルからリストを読み込む"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            ファイル読み込み
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={handleImportJSON}
+            className="hidden"
+          />
+
           {onBoardParsedImage && (
             <BoardImageUploader
               variant="inline"
@@ -140,28 +244,28 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
               今の盤面を保存
             </button>
           ) : (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="終局図の名前..."
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
-            />
-            <button
-              onClick={handleSaveCurrent}
-              className="px-2.5 py-1 bg-amber-600 text-white rounded-md text-xs font-bold hover:bg-amber-700"
-            >
-              保存
-            </button>
-            <button
-              onClick={() => setIsSaving(false)}
-              className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800"
-            >
-              キャンセル
-            </button>
-          </div>
-        )}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="終局図の名前..."
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                className="px-2.5 py-1 text-xs border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+              <button
+                onClick={handleSaveCurrent}
+                className="px-2.5 py-1 bg-amber-600 text-white rounded-md text-xs font-bold hover:bg-amber-700"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => setIsSaving(false)}
+                className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800"
+              >
+                キャンセル
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -179,6 +283,13 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
                     {preset.size}×{preset.size}
                   </span>
+                  <button
+                    onClick={() => handleExportSingleItem(preset)}
+                    className="text-neutral-400 hover:text-amber-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
+                    title="この終局図をJSONファイルで書き出す"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => handleDeletePreset(preset.id)}
                     className="text-neutral-400 hover:text-red-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
@@ -212,13 +323,22 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-950 line-clamp-1">{item.name}</span>
-                <button
-                  onClick={() => handleDeleteUserSaved(item.id)}
-                  className="text-neutral-400 hover:text-red-600 p-0.5"
-                  title="削除"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleExportSingleItem(item)}
+                    className="text-neutral-400 hover:text-amber-700 p-0.5"
+                    title="この終局図をJSONファイルで書き出す"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUserSaved(item.id)}
+                    className="text-neutral-400 hover:text-red-600 p-0.5"
+                    title="削除"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               <span className="text-[10px] text-neutral-400">{item.createdAt}</span>
             </div>
@@ -236,3 +356,4 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
     </div>
   );
 };
+

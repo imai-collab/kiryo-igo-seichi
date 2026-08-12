@@ -1,4 +1,5 @@
 import { StoneType, Point, TerritoryRegion, TerritoryType, SeichiAnalysis, SavedEndgame } from '../types';
+import presetEndgamesData from '../data/presetEndgames.json';
 
 const DIRECTIONS = [
   [-1, 0], [1, 0], [0, -1], [0, 1]
@@ -366,100 +367,5 @@ export function autoRearrangeTerritory(
   return newGrid;
 }
 
-// Preset Endgame Samples
-export const PRESET_ENDGAMES: SavedEndgame[] = [
-  {
-    id: 'preset-19x19-attached-sample',
-    name: '19路盤 終局図 (添付画像サンプル)',
-    size: 19,
-    blackPrisoners: 3,
-    whitePrisoners: 2,
-    komi: 6.5,
-    createdAt: new Date().toISOString(),
-    description: 'ご提示いただいた添付画像の19路盤終局状態。中央の大地、周囲の死に石・境界線を完全再現。',
-    grid: [
-      ['EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','WHITE','WHITE','BLACK'],
-      ['BLACK','BLACK','EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','EMPTY','WHITE','WHITE','BLACK','BLACK'],
-      ['WHITE','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','BLACK','BLACK','WHITE','EMPTY','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK'],
-      ['WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK','WHITE','EMPTY','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK'],
-      ['EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','WHITE','BLACK','WHITE','EMPTY','EMPTY','EMPTY','WHITE','EMPTY','WHITE','WHITE','BLACK','BLACK','EMPTY'],
-      ['EMPTY','EMPTY','EMPTY','EMPTY','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK','EMPTY','EMPTY','EMPTY','WHITE','EMPTY','WHITE','BLACK','BLACK','EMPTY'],
-      ['EMPTY','EMPTY','WHITE','WHITE','WHITE','EMPTY','BLACK','BLACK','BLACK','WHITE','EMPTY','EMPTY','BLACK','EMPTY','WHITE','WHITE','BLACK','BLACK','BLACK'],
-      ['WHITE','WHITE','EMPTY','WHITE','BLACK','BLACK','BLACK','BLACK','WHITE','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','BLACK'],
-      ['WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','WHITE','BLACK','WHITE','WHITE','BLACK'],
-      ['EMPTY','EMPTY','EMPTY','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK'],
-      ['WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','WHITE'],
-      ['EMPTY','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','EMPTY'],
-      ['EMPTY','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','WHITE','BLACK','BLACK','WHITE','EMPTY'],
-      ['EMPTY','EMPTY','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK','WHITE','EMPTY'],
-      ['EMPTY','EMPTY','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','EMPTY'],
-      ['WHITE','WHITE','EMPTY','EMPTY','WHITE','BLACK','BLACK','EMPTY','WHITE','BLACK','WHITE','WHITE','WHITE','EMPTY','BLACK','WHITE','WHITE','WHITE','WHITE'],
-      ['EMPTY','EMPTY','EMPTY','EMPTY','WHITE','BLACK','BLACK','EMPTY','WHITE','BLACK','WHITE','WHITE','WHITE','EMPTY','BLACK','WHITE','WHITE','WHITE','WHITE'],
-      ['WHITE','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE'],
-      ['EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','BLACK','EMPTY','EMPTY','EMPTY']
-    ]
-  },
-  {
-    id: 'preset-9x9-close',
-    name: '9路盤 終局図 ① (接戦モデル)',
-    size: 9,
-    blackPrisoners: 2,
-    whitePrisoners: 1,
-    komi: 6.5,
-    createdAt: new Date().toISOString(),
-    description: '黒地と白地が上下に二分された標準的な9路盤の終局図。死に石あり。',
-    grid: [
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'EMPTY', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-    ]
-  },
-  {
-    id: 'preset-9x9-black-win',
-    name: '9路盤 終局図 ② (黒大陣地)',
-    size: 9,
-    blackPrisoners: 0,
-    whitePrisoners: 3,
-    komi: 6.5,
-    createdAt: new Date().toISOString(),
-    description: '黒が左下と中央を大きく囲った終局図。白の死に石が1子入っています。',
-    grid: [
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'EMPTY', 'WHITE', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'EMPTY', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-    ]
-  },
-  {
-    id: 'preset-9x9-white-win',
-    name: '9路盤 終局図 ③ (白優勢)',
-    size: 9,
-    blackPrisoners: 4,
-    whitePrisoners: 0,
-    komi: 6.5,
-    createdAt: new Date().toISOString(),
-    description: '白が右側と上辺を広く確保。アゲハ（アタリで取った石）の計算が決め手となります。',
-    grid: [
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
-    ]
-  }
-];
+// Preset Endgame Samples loaded from JSON
+export const PRESET_ENDGAMES: SavedEndgame[] = presetEndgamesData as SavedEndgame[];
