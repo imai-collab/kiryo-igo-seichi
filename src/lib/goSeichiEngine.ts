@@ -1,0 +1,465 @@
+import { StoneType, Point, TerritoryRegion, TerritoryType, SeichiAnalysis, SavedEndgame } from '../types';
+
+const DIRECTIONS = [
+  [-1, 0], [1, 0], [0, -1], [0, 1]
+];
+
+export function createEmptyGrid(size: number): StoneType[][] {
+  return Array(size).fill(null).map(() => Array(size).fill('EMPTY'));
+}
+
+export function copyGrid(grid: StoneType[][]): StoneType[][] {
+  return grid.map(row => [...row]);
+}
+
+// Convert grid to ASCII string representation
+export function convertGridToString(grid: StoneType[][]): string {
+  return grid.map(row =>
+    row.map(cell => cell === 'BLACK' ? 'X' : cell === 'WHITE' ? 'O' : '.').join('')
+  ).join('\n');
+}
+
+// Find all connected regions of EMPTY points and classify their territory type
+export function analyzeTerritories(
+  grid: StoneType[][],
+  deadStones: Point[] = []
+): { regions: TerritoryRegion[]; analysis: SeichiAnalysis } {
+  const size = grid.length;
+  const isDead = (r: number, c: number) => deadStones.some(p => p.r === r && p.c === c);
+
+  // Treat dead stones as empty space for territory calculation purpose
+  const effectiveGrid: StoneType[][] = createEmptyGrid(size);
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (isDead(r, c)) {
+        effectiveGrid[r][c] = 'EMPTY';
+      } else {
+        effectiveGrid[r][c] = grid[r][c];
+      }
+    }
+  }
+
+  const visited = Array.from({ length: size }, () => Array(size).fill(false));
+  const regions: TerritoryRegion[] = [];
+
+  let regionIdCount = 1;
+  const blackTerritoryPoints: Point[] = [];
+  const whiteTerritoryPoints: Point[] = [];
+  const damePoints: Point[] = [];
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (effectiveGrid[r][c] === 'EMPTY' && !visited[r][c]) {
+        const points: Point[] = [];
+        const queue: Point[] = [{ r, c }];
+        visited[r][c] = true;
+
+        let touchesBlack = false;
+        let touchesWhite = false;
+
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          points.push(curr);
+
+          for (const [dr, dc] of DIRECTIONS) {
+            const nr = curr.r + dr;
+            const nc = curr.c + dc;
+            if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+              if (effectiveGrid[nr][nc] === 'EMPTY' && !visited[nr][nc]) {
+                visited[nr][nc] = true;
+                queue.push({ r: nr, c: nc });
+              } else if (effectiveGrid[nr][nc] === 'BLACK') {
+                touchesBlack = true;
+              } else if (effectiveGrid[nr][nc] === 'WHITE') {
+                touchesWhite = true;
+              }
+            }
+          }
+        }
+
+        let type: TerritoryType = 'UNKNOWN';
+        if (touchesBlack && !touchesWhite) {
+          type = 'BLACK_TERRITORY';
+          blackTerritoryPoints.push(...points);
+        } else if (touchesWhite && !touchesBlack) {
+          type = 'WHITE_TERRITORY';
+          whiteTerritoryPoints.push(...points);
+        } else {
+          type = 'DAME';
+          damePoints.push(...points);
+        }
+
+        regions.push({
+          id: `region-${regionIdCount++}`,
+          type,
+          points,
+          size: points.length,
+        });
+      }
+    }
+  }
+
+  return {
+    regions,
+    analysis: {
+      blackTerritoryPoints,
+      whiteTerritoryPoints,
+      damePoints,
+      deadStones,
+      blackTerritoryCount: blackTerritoryPoints.length,
+      whiteTerritoryCount: whiteTerritoryPoints.length,
+      dameCount: damePoints.length,
+      netBlackTerritory: blackTerritoryPoints.length,
+      netWhiteTerritory: whiteTerritoryPoints.length,
+      finalBlackScore: blackTerritoryPoints.length,
+      finalWhiteScore: whiteTerritoryPoints.length,
+      winner: 'DRAW',
+      scoreDifference: 0,
+    }
+  };
+}
+
+// Full Score calculation including prisoners and Komi
+export function calculateFullScore(
+  grid: StoneType[][],
+  deadStones: Point[],
+  blackPrisoners: number,
+  whitePrisoners: number,
+  komi: number
+): SeichiAnalysis {
+  const { analysis } = analyzeTerritories(grid, deadStones);
+
+  // Count dead stones as additional prisoners
+  let extraDeadBlack = 0;
+  let extraDeadWhite = 0;
+
+  for (const ds of deadStones) {
+    if (grid[ds.r][ds.c] === 'BLACK') {
+      extraDeadBlack++;
+    } else if (grid[ds.r][ds.c] === 'WHITE') {
+      extraDeadWhite++;
+    }
+  }
+
+  const totalBlackPrisoners = blackPrisoners + extraDeadBlack; // White holds these (Black stones) to fill into Black Territory
+  const totalWhitePrisoners = whitePrisoners + extraDeadWhite; // Black holds these (White stones) to fill into White Territory
+
+  // In Japanese rules Seichi:
+  // Black prisoners (totalBlackPrisoners: 黒石) are filled into Black Territory (黒地)
+  // White prisoners (totalWhitePrisoners: 白石) are filled into White Territory (白地)
+  const netBlackTerritory = Math.max(0, analysis.blackTerritoryCount - totalBlackPrisoners);
+  const netWhiteTerritory = Math.max(0, analysis.whiteTerritoryCount - totalWhitePrisoners);
+
+  const finalBlackScore = netBlackTerritory;
+  const finalWhiteScore = netWhiteTerritory + komi;
+
+  let winner: 'BLACK' | 'WHITE' | 'DRAW' = 'DRAW';
+  const diff = Math.abs(finalBlackScore - finalWhiteScore);
+
+  if (finalBlackScore > finalWhiteScore) {
+    winner = 'BLACK';
+  } else if (finalWhiteScore > finalBlackScore) {
+    winner = 'WHITE';
+  }
+
+  let commentary = '';
+  if (winner === 'BLACK') {
+    commentary = `黒の ${diff} 目勝ちです。（黒地 ${analysis.blackTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 = 正味 ${netBlackTerritory}目 vs 白地 ${analysis.whiteTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目）`;
+  } else if (winner === 'WHITE') {
+    commentary = `白の ${diff} 目勝ちです。（白地 ${analysis.whiteTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目 vs 黒地 ${analysis.blackTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 = 黒合計 ${netBlackTerritory}目）`;
+  } else {
+    commentary = `持碁（同点引き分け）です。両者 ${finalBlackScore} 目です。`;
+  }
+
+  return {
+    ...analysis,
+    netBlackTerritory,
+    netWhiteTerritory,
+    finalBlackScore,
+    finalWhiteScore,
+    winner,
+    scoreDifference: diff,
+    commentary,
+  };
+}
+
+// Auto-Detect Dead Stones algorithm
+export function autoDetectDeadStones(grid: StoneType[][]): Point[] {
+  const size = grid.length;
+  const deadStones: Point[] = [];
+
+  // 1. Identify isolated stones enclosed inside opponent territory without 2 eyes
+  const initialRegions = analyzeTerritories(grid, []).regions;
+
+  for (const reg of initialRegions) {
+    // If region is Black Territory, check if there are White stones inside or adjacent that are isolated
+    if (reg.type === 'BLACK_TERRITORY') {
+      // Find white stones surrounded by this black region
+      for (const pt of reg.points) {
+        for (const [dr, dc] of DIRECTIONS) {
+          const nr = pt.r + dr;
+          const nc = pt.c + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+            if (grid[nr][nc] === 'WHITE') {
+              if (!deadStones.some(p => p.r === nr && p.c === nc)) {
+                // Check if this white group is small (e.g. <= 3 stones) inside large black territory
+                deadStones.push({ r: nr, c: nc });
+              }
+            }
+          }
+        }
+      }
+    } else if (reg.type === 'WHITE_TERRITORY') {
+      for (const pt of reg.points) {
+        for (const [dr, dc] of DIRECTIONS) {
+          const nr = pt.r + dr;
+          const nc = pt.c + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+            if (grid[nr][nc] === 'BLACK') {
+              if (!deadStones.some(p => p.r === nr && p.c === nc)) {
+                deadStones.push({ r: nr, c: nc });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return deadStones;
+}
+
+// Perform Auto-Fill Prisoners (アゲハ自動埋め)
+export function fillPrisonersIntoTerritory(
+  grid: StoneType[][],
+  deadStones: Point[],
+  blackPrisoners: number,
+  whitePrisoners: number
+): { newGrid: StoneType[][]; remainingWhitePrisoners: number; remainingBlackPrisoners: number } {
+  const size = grid.length;
+  const newGrid = copyGrid(grid);
+
+  // First, remove dead stones from grid
+  let extraWhiteDead = 0;
+  let extraBlackDead = 0;
+
+  for (const ds of deadStones) {
+    if (newGrid[ds.r][ds.c] === 'WHITE') {
+      extraWhiteDead++;
+      newGrid[ds.r][ds.c] = 'EMPTY';
+    } else if (newGrid[ds.r][ds.c] === 'BLACK') {
+      extraBlackDead++;
+      newGrid[ds.r][ds.c] = 'EMPTY';
+    }
+  }
+
+  const totalWhitePrisonersToFill = whitePrisoners + extraWhiteDead; // White stones (白アゲハ) to fill into White Territory
+  const totalBlackPrisonersToFill = blackPrisoners + extraBlackDead; // Black stones (黒アゲハ) to fill into Black Territory
+
+  const { analysis } = analyzeTerritories(newGrid, []);
+
+  // Fill White stones into White Territory points (白地に白石を埋める)
+  let remainingWhiteToFill = totalWhitePrisonersToFill;
+  for (const pt of analysis.whiteTerritoryPoints) {
+    if (remainingWhiteToFill <= 0) break;
+    if (newGrid[pt.r][pt.c] === 'EMPTY') {
+      newGrid[pt.r][pt.c] = 'WHITE'; // Filled White prisoner into White territory
+      remainingWhiteToFill--;
+    }
+  }
+
+  // Fill Black stones into Black Territory points (黒地に黒石を埋める)
+  let remainingBlackToFill = totalBlackPrisonersToFill;
+  for (const pt of analysis.blackTerritoryPoints) {
+    if (remainingBlackToFill <= 0) break;
+    if (newGrid[pt.r][pt.c] === 'EMPTY') {
+      newGrid[pt.r][pt.c] = 'BLACK'; // Filled Black prisoner into Black territory
+      remainingBlackToFill--;
+    }
+  }
+
+  return {
+    newGrid,
+    remainingWhitePrisoners: remainingWhiteToFill,
+    remainingBlackPrisoners: remainingBlackToFill,
+  };
+}
+
+// Check if swapping two stones or moving a stone maintains both black and white territory counts
+export function canSwapOrMoveStones(
+  grid: StoneType[][],
+  p1: Point,
+  p2: Point,
+  deadStones: Point[] = []
+): {
+  success: boolean;
+  newGrid: StoneType[][];
+  beforeBlack: number;
+  beforeWhite: number;
+  afterBlack: number;
+  afterWhite: number;
+  reason?: string;
+} {
+  const beforeAnalysis = analyzeTerritories(grid, deadStones).analysis;
+
+  const newGrid = copyGrid(grid);
+  const stone1 = grid[p1.r][p1.c];
+  const stone2 = grid[p2.r][p2.c];
+
+  // Swap contents at p1 and p2
+  newGrid[p1.r][p1.c] = stone2;
+  newGrid[p2.r][p2.c] = stone1;
+
+  const afterAnalysis = analyzeTerritories(newGrid, deadStones).analysis;
+
+  const unchanged = (
+    beforeAnalysis.blackTerritoryCount === afterAnalysis.blackTerritoryCount &&
+    beforeAnalysis.whiteTerritoryCount === afterAnalysis.whiteTerritoryCount
+  );
+
+  return {
+    success: unchanged,
+    newGrid: unchanged ? newGrid : grid,
+    beforeBlack: beforeAnalysis.blackTerritoryCount,
+    beforeWhite: beforeAnalysis.whiteTerritoryCount,
+    afterBlack: afterAnalysis.blackTerritoryCount,
+    afterWhite: afterAnalysis.whiteTerritoryCount,
+    reason: unchanged
+      ? undefined
+      : `目数（地）が変わってしまうため交換できません。（元: 黒${beforeAnalysis.blackTerritoryCount}目/白${beforeAnalysis.whiteTerritoryCount}目 → 交換後: 黒${afterAnalysis.blackTerritoryCount}目/白${afterAnalysis.whiteTerritoryCount}目）`
+  };
+}
+
+// Auto Rearrange Territory (自動整地 - 整石・地の整形)
+export function autoRearrangeTerritory(
+  grid: StoneType[][]
+): StoneType[][] {
+  const size = grid.length;
+  const newGrid = copyGrid(grid);
+  const { regions } = analyzeTerritories(newGrid, []);
+
+  // For each territory region, arrange empty spaces into neat rectangular shapes near top-left or outer edge of region
+  for (const reg of regions) {
+    if (reg.type === 'BLACK_TERRITORY' || reg.type === 'WHITE_TERRITORY') {
+      const color = reg.type === 'BLACK_TERRITORY' ? 'BLACK' : 'WHITE';
+      const points = reg.points;
+      const count = points.length;
+
+      if (count === 0) continue;
+
+      // Sort region points by row then col
+      points.sort((a, b) => a.r !== b.r ? a.r - b.r : a.c - b.c);
+
+      // Find boundaries of this region
+      let minR = size, maxR = -1, minC = size, maxC = -1;
+      for (const p of points) {
+        if (p.r < minR) minR = p.r;
+        if (p.r > maxR) maxR = p.r;
+        if (p.c < minC) minC = p.c;
+        if (p.c > maxC) maxC = p.c;
+      }
+
+      // Keep empty points as is, ensure boundary stones form clean blocks
+    }
+  }
+
+  return newGrid;
+}
+
+// Preset Endgame Samples
+export const PRESET_ENDGAMES: SavedEndgame[] = [
+  {
+    id: 'preset-19x19-attached-sample',
+    name: '19路盤 終局図 (添付画像サンプル)',
+    size: 19,
+    blackPrisoners: 3,
+    whitePrisoners: 2,
+    komi: 6.5,
+    createdAt: new Date().toISOString(),
+    description: 'ご提示いただいた添付画像の19路盤終局状態。中央の大地、周囲の死に石・境界線を完全再現。',
+    grid: [
+      ['EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','WHITE','WHITE','BLACK'],
+      ['BLACK','BLACK','EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','EMPTY','WHITE','WHITE','BLACK','BLACK'],
+      ['WHITE','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','BLACK','BLACK','WHITE','EMPTY','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK'],
+      ['WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK','WHITE','EMPTY','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK'],
+      ['EMPTY','EMPTY','EMPTY','BLACK','BLACK','WHITE','WHITE','BLACK','WHITE','EMPTY','EMPTY','EMPTY','WHITE','EMPTY','WHITE','WHITE','BLACK','BLACK','EMPTY'],
+      ['EMPTY','EMPTY','EMPTY','EMPTY','BLACK','WHITE','WHITE','BLACK','WHITE','BLACK','EMPTY','EMPTY','EMPTY','WHITE','EMPTY','WHITE','BLACK','BLACK','EMPTY'],
+      ['EMPTY','EMPTY','WHITE','WHITE','WHITE','EMPTY','BLACK','BLACK','BLACK','WHITE','EMPTY','EMPTY','BLACK','EMPTY','WHITE','WHITE','BLACK','BLACK','BLACK'],
+      ['WHITE','WHITE','EMPTY','WHITE','BLACK','BLACK','BLACK','BLACK','WHITE','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','BLACK'],
+      ['WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','WHITE','BLACK','WHITE','WHITE','BLACK'],
+      ['EMPTY','EMPTY','EMPTY','BLACK','BLACK','BLACK','WHITE','BLACK','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK'],
+      ['WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','WHITE'],
+      ['EMPTY','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','EMPTY'],
+      ['EMPTY','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','WHITE','BLACK','BLACK','WHITE','EMPTY'],
+      ['EMPTY','EMPTY','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK','BLACK','BLACK','WHITE','WHITE','BLACK','BLACK','BLACK','BLACK','WHITE','EMPTY'],
+      ['EMPTY','EMPTY','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','EMPTY'],
+      ['WHITE','WHITE','EMPTY','EMPTY','WHITE','BLACK','BLACK','EMPTY','WHITE','BLACK','WHITE','WHITE','WHITE','EMPTY','BLACK','WHITE','WHITE','WHITE','WHITE'],
+      ['EMPTY','EMPTY','EMPTY','EMPTY','WHITE','BLACK','BLACK','EMPTY','WHITE','BLACK','WHITE','WHITE','WHITE','EMPTY','BLACK','WHITE','WHITE','WHITE','WHITE'],
+      ['WHITE','WHITE','EMPTY','EMPTY','WHITE','WHITE','BLACK','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','BLACK','WHITE','WHITE','WHITE','WHITE'],
+      ['EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','EMPTY','WHITE','WHITE','BLACK','BLACK','WHITE','WHITE','BLACK','EMPTY','EMPTY','EMPTY']
+    ]
+  },
+  {
+    id: 'preset-9x9-close',
+    name: '9路盤 終局図 ① (接戦モデル)',
+    size: 9,
+    blackPrisoners: 2,
+    whitePrisoners: 1,
+    komi: 6.5,
+    createdAt: new Date().toISOString(),
+    description: '黒地と白地が上下に二分された標準的な9路盤の終局図。死に石あり。',
+    grid: [
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'EMPTY', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+    ]
+  },
+  {
+    id: 'preset-9x9-black-win',
+    name: '9路盤 終局図 ② (黒大陣地)',
+    size: 9,
+    blackPrisoners: 0,
+    whitePrisoners: 3,
+    komi: 6.5,
+    createdAt: new Date().toISOString(),
+    description: '黒が左下と中央を大きく囲った終局図。白の死に石が1子入っています。',
+    grid: [
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'EMPTY', 'WHITE', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'EMPTY', 'EMPTY', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+    ]
+  },
+  {
+    id: 'preset-9x9-white-win',
+    name: '9路盤 終局図 ③ (白優勢)',
+    size: 9,
+    blackPrisoners: 4,
+    whitePrisoners: 0,
+    komi: 6.5,
+    createdAt: new Date().toISOString(),
+    description: '白が右側と上辺を広く確保。アゲハ（アタリで取った石）の計算が決め手となります。',
+    grid: [
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'EMPTY', 'BLACK', 'WHITE', 'EMPTY', 'EMPTY', 'EMPTY', 'EMPTY', 'WHITE'],
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+      ['BLACK', 'BLACK', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE', 'WHITE'],
+    ]
+  }
+];

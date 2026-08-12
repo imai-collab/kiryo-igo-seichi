@@ -1,0 +1,8 @@
+{
+  "name": "囲碁の整地",
+  "description": "終局図を自由配置し、死に石の取り除き・アゲハの埋め込み・整地（地の整形）を経て目数集計と勝敗判定を行う囲碁整地アプリ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
