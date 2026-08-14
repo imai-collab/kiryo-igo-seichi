@@ -78,8 +78,8 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
               <strong className="font-mono text-sm">{analysis.blackTerritoryCount} 目</strong>
             </div>
             <div className="flex justify-between text-rose-400">
-              <span className="opacity-75">2. 埋め込んだ黒アゲハ (黒石):</span>
-              <strong className="font-mono text-sm">- {blackPrisoners} 目</strong>
+              <span className="opacity-75">2. 埋め込んだ白アゲハ (黒石):</span>
+              <strong className="font-mono text-sm">- {whitePrisoners} 目</strong>
             </div>
             <hr className="border-neutral-200/20 my-1" />
             <div className="flex justify-between items-baseline pt-1">
@@ -113,8 +113,8 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
               <strong className="font-mono text-sm">{analysis.whiteTerritoryCount} 目</strong>
             </div>
             <div className="flex justify-between text-rose-400">
-              <span className="opacity-75">2. 埋め込んだ白アゲハ (白石):</span>
-              <strong className="font-mono text-sm">- {whitePrisoners} 目</strong>
+              <span className="opacity-75">2. 埋め込んだ黒アゲハ (白石):</span>
+              <strong className="font-mono text-sm">- {blackPrisoners} 目</strong>
             </div>
             <div className="flex justify-between text-emerald-400">
               <span className="opacity-75">3. コミ加算:</span>

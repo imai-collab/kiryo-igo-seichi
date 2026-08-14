@@ -25,6 +25,7 @@ interface SeichiControlPanelProps {
   blackPrisoners: number;
   whitePrisoners: number;
   deadStonesCount: number;
+  dameCount?: number;
   isAnalyzing: boolean;
   rearrangeStatus?: { type: 'success' | 'warning' | 'error' | 'info'; message: string } | null;
   onToolChange: (tool: 'BLACK' | 'WHITE' | 'ERASER' | 'DEAD_STONE') => void;
@@ -47,6 +48,7 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
   blackPrisoners,
   whitePrisoners,
   deadStonesCount,
+  dameCount = 0,
   isAnalyzing,
   rearrangeStatus,
   onToolChange,
@@ -302,13 +304,18 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200 text-xs">
-            <span className="font-semibold text-neutral-700">
-              現在指定されている死に石の数: <strong className="text-red-600 text-sm font-bold">{deadStonesCount}</strong> 子
-            </span>
-            <span className="text-neutral-500 text-[11px]">
-              ※死に石は取り除かれ、相手のアゲハに加算されます。
-            </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white p-3 rounded-lg border border-amber-200 text-xs">
+            <div className="flex items-center justify-between font-semibold text-neutral-700 pr-1">
+              <span>指定中の死に石: <strong className="text-red-600 text-sm font-bold">{deadStonesCount}</strong> 子</span>
+              <span className="text-[11px] text-neutral-500">（アゲハに加算）</span>
+            </div>
+            <div className="flex items-center justify-between font-semibold bg-amber-100/90 px-2.5 py-1.5 rounded-md border border-amber-300">
+              <span className="flex items-center gap-1.5 text-amber-950">
+                <span className="w-3 h-3 rounded bg-gradient-to-br from-yellow-300 to-amber-500 border border-amber-600 inline-block animate-pulse shadow-xs" />
+                ダメ（公点）:
+              </span>
+              <span className="text-amber-950 font-extrabold">{dameCount} 点 <span className="text-[10px] font-bold text-amber-800">（目立つ黄色で強調表示中）</span></span>
+            </div>
           </div>
 
           <div className="flex justify-between items-center pt-2">
@@ -340,7 +347,7 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
                 ステップ 3：アゲハ（ハマ）を地に埋める
               </h3>
               <p className="text-xs text-blue-800/90 mt-0.5">
-                黒のアゲハ（黒石）を黒地に、白のアゲハ（白石）を白地の空点に埋めて地の計算を単純化します。
+                黒のアゲハ（白石）を白地に、白のアゲハ（黒石）を黒地の空点に埋めて地の計算を単純化します。
               </p>
             </div>
 
@@ -355,12 +362,12 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
 
           <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-blue-200 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-black" />
-              <span className="text-neutral-700">黒のアゲハ（黒石） → 黒地へ埋め込み</span>
+              <div className="w-3 h-3 rounded-full bg-white border border-neutral-400" />
+              <span className="text-neutral-700">黒のアゲハ（白石） → 白地の空点へ埋め込み</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-white border border-neutral-400" />
-              <span className="text-neutral-700">白のアゲハ（白石） → 白地へ埋め込み</span>
+              <div className="w-3 h-3 rounded-full bg-black" />
+              <span className="text-neutral-700">白のアゲハ（黒石） → 黒地の空点へ埋め込み</span>
             </div>
           </div>
 

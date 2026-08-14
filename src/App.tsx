@@ -66,17 +66,21 @@ export default function App() {
     setAiCommentary(null);
   };
 
-  // Handle board image parsed by Gemini Multimodal AI
-  const handleBoardParsedFromImage = (
+  // Handle board parsed from SGF or Image
+  const handleBoardParsedFromData = (
     parsedGrid: StoneType[][],
     parsedSize: number,
-    detectedPrisoners?: { black: number; white: number }
+    detectedPrisoners?: { black: number; white: number },
+    newKomi?: number
   ) => {
     setBoardSize(parsedSize);
     setGrid(parsedGrid.map(r => [...r]));
     if (detectedPrisoners) {
-      if (detectedPrisoners.black > 0) setBlackPrisoners(detectedPrisoners.black);
-      if (detectedPrisoners.white > 0) setWhitePrisoners(detectedPrisoners.white);
+      if (typeof detectedPrisoners.black === 'number') setBlackPrisoners(detectedPrisoners.black);
+      if (typeof detectedPrisoners.white === 'number') setWhitePrisoners(detectedPrisoners.white);
+    }
+    if (newKomi !== undefined && !isNaN(newKomi)) {
+      setKomi(newKomi);
     }
     setDeadStones([]);
     setPhase('SETUP');
@@ -290,11 +294,11 @@ export default function App() {
           </p>
         </div>
 
-        {/* Prominent Image Reader Card Banner */}
+        {/* Prominent SGF & Image Reader Card Banner */}
         <BoardImageUploader
           variant="card"
           boardSize={boardSize}
-          onBoardParsed={handleBoardParsedFromImage}
+          onBoardParsed={handleBoardParsedFromData}
         />
 
         {/* Presets & Custom Saved Endgames */}
@@ -305,7 +309,7 @@ export default function App() {
           whitePrisoners={whitePrisoners}
           komi={komi}
           onLoadEndgame={handleLoadEndgame}
-          onBoardParsedImage={handleBoardParsedFromImage}
+          onBoardParsedImage={handleBoardParsedFromData}
         />
 
         {/* Main Interface Layout */}
@@ -344,10 +348,11 @@ export default function App() {
               blackPrisoners={blackPrisoners}
               whitePrisoners={whitePrisoners}
               deadStonesCount={deadStones.length}
+              dameCount={territoryAnalysis.analysis.dameCount}
               isAnalyzing={isAnalyzingAI}
               rearrangeStatus={rearrangeStatus}
               onToolChange={setCurrentTool}
-              onBoardParsedImage={handleBoardParsedFromImage}
+              onBoardParsedImage={handleBoardParsedFromData}
               onSizeChange={handleSizeChange}
               onKomiChange={setKomi}
               onPrisonerChange={(b, w) => {

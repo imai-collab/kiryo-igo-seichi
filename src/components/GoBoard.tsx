@@ -149,9 +149,19 @@ export const GoBoard: React.FC<GoBoardProps> = ({
                             </div>
                           )}
                           {territory === 'DAME' && (
-                            <div className="absolute inset-1 bg-neutral-400/30 rounded-full border border-neutral-500/40 flex items-center justify-center">
-                              <span className={`${size === 19 ? 'text-[6.5px]' : 'text-[9px]'} font-medium text-neutral-700`}>ダメ</span>
-                            </div>
+                            phase === 'DEAD_STONES' ? (
+                              <div className="absolute inset-0.5 bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-400 rounded-md border-2 border-amber-600 shadow-md ring-2 ring-amber-300/90 flex items-center justify-center animate-pulse z-20">
+                                <span className={`${size === 19 ? 'text-[7.5px]' : 'text-[10px]'} font-black text-amber-950 tracking-tighter drop-shadow-xs`}>
+                                  ダメ
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="absolute inset-0.5 bg-amber-300/40 rounded-md border border-amber-500/70 flex items-center justify-center shadow-inner animate-fade-in">
+                                <span className={`${size === 19 ? 'text-[7px]' : 'text-[9.5px]'} font-bold text-amber-950`}>
+                                  ダメ
+                                </span>
+                              </div>
+                            )
                           )}
                         </>
                       )}

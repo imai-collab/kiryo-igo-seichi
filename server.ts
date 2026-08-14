@@ -210,14 +210,14 @@ ${gridString}
 - 黒地 (元の空点): ${scoreResult.blackTerritoryCount} 目
 - 白地 (元の空点): ${scoreResult.whiteTerritoryCount} 目
 - 死に石 (盤上に残った死石): ${deadStones.length} 個
-- 黒のアゲハ (白が捕獲した黒石): ${blackPrisoners} 子 (黒地埋め用)
-- 白のアゲハ (黒が捕獲した白石): ${whitePrisoners} 子 (白地埋め用)
+- 黒のアゲハ (黒が捕獲した白石): ${blackPrisoners} 子 (白地の空点埋め用)
+- 白のアゲハ (白が捕獲した黒石): ${whitePrisoners} 子 (黒地の空点埋め用)
 - コミ: ${komi} 目
 - 計算結果: 正味黒地 ${scoreResult.netBlackTerritory} 目 vs 正味白地+コミ ${scoreResult.finalWhiteScore} 目
 - 勝敗: ${scoreResult.winner === 'BLACK' ? `黒の ${scoreResult.scoreDifference} 目勝ち` : scoreResult.winner === 'WHITE' ? `白の ${scoreResult.scoreDifference} 目勝ち` : '持碁（引き分け）'}
 
 【解説の指示】
-1. 整地の基本手順（死に石の取り除き → アゲハを相手の地に埋める → 地を5目・10目の四角形に整地する）に沿って、なぜこの勝敗結果になったかを初心者に分かりやすく説明してください。
+1. 整地の基本手順（死に石の取り除き → アゲハを相手の地に埋める［黒のアゲハ（白石）は白地に、白のアゲハ（黒石）は黒地に埋める］ → 地を5目・10目の四角形に整地する）に沿って、なぜこの勝敗結果になったかを初心者に分かりやすく説明してください。
 2. 整地で計算ミスを防ぐためのワンポイントアドバイス（例：地を四角形にまとめるコツやアゲハ計算のポイント）を1言添えてください。
 
 JSON形式で返答してください:

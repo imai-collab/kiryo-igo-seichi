@@ -131,8 +131,8 @@ export function calculateFullScore(
   const { analysis } = analyzeTerritories(grid, deadStones);
 
   // Count dead stones as additional prisoners
-  let extraDeadBlack = 0;
-  let extraDeadWhite = 0;
+  let extraDeadBlack = 0; // Black dead stones captured -> White's prisoners (白のアゲハ)
+  let extraDeadWhite = 0; // White dead stones captured -> Black's prisoners (黒のアゲハ)
 
   for (const ds of deadStones) {
     if (grid[ds.r][ds.c] === 'BLACK') {
@@ -142,14 +142,16 @@ export function calculateFullScore(
     }
   }
 
-  const totalBlackPrisoners = blackPrisoners + extraDeadBlack; // White holds these (Black stones) to fill into Black Territory
-  const totalWhitePrisoners = whitePrisoners + extraDeadWhite; // Black holds these (White stones) to fill into White Territory
+  // 黒のアゲハ (Black's prisoners) = White stones captured by Black -> Filled into White Territory
+  const totalBlackPrisoners = blackPrisoners + extraDeadWhite;
+  // 白のアゲハ (White's prisoners) = Black stones captured by White -> Filled into Black Territory
+  const totalWhitePrisoners = whitePrisoners + extraDeadBlack;
 
   // In Japanese rules Seichi:
-  // Black prisoners (totalBlackPrisoners: 黒石) are filled into Black Territory (黒地)
-  // White prisoners (totalWhitePrisoners: 白石) are filled into White Territory (白地)
-  const netBlackTerritory = Math.max(0, analysis.blackTerritoryCount - totalBlackPrisoners);
-  const netWhiteTerritory = Math.max(0, analysis.whiteTerritoryCount - totalWhitePrisoners);
+  // Black's territory is reduced by White's prisoners (totalWhitePrisoners: 黒石 placed into Black territory)
+  // White's territory is reduced by Black's prisoners (totalBlackPrisoners: 白石 placed into White territory)
+  const netBlackTerritory = Math.max(0, analysis.blackTerritoryCount - totalWhitePrisoners);
+  const netWhiteTerritory = Math.max(0, analysis.whiteTerritoryCount - totalBlackPrisoners);
 
   const finalBlackScore = netBlackTerritory;
   const finalWhiteScore = netWhiteTerritory + komi;
@@ -165,9 +167,9 @@ export function calculateFullScore(
 
   let commentary = '';
   if (winner === 'BLACK') {
-    commentary = `黒の ${diff} 目勝ちです。（黒地 ${analysis.blackTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 = 正味 ${netBlackTerritory}目 vs 白地 ${analysis.whiteTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目）`;
+    commentary = `黒の ${diff} 目勝ちです。（黒地 ${analysis.blackTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 = 正味 ${netBlackTerritory}目 vs 白地 ${analysis.whiteTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目）`;
   } else if (winner === 'WHITE') {
-    commentary = `白の ${diff} 目勝ちです。（白地 ${analysis.whiteTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目 vs 黒地 ${analysis.blackTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 = 黒合計 ${netBlackTerritory}目）`;
+    commentary = `白の ${diff} 目勝ちです。（白地 ${analysis.whiteTerritoryCount}目 - 黒アゲハ ${totalBlackPrisoners}目 + コミ ${komi}目 = 白合計 ${finalWhiteScore}目 vs 黒地 ${analysis.blackTerritoryCount}目 - 白アゲハ ${totalWhitePrisoners}目 = 黒合計 ${netBlackTerritory}目）`;
   } else {
     commentary = `持碁（同点引き分け）です。両者 ${finalBlackScore} 目です。`;
   }
@@ -236,13 +238,13 @@ export function fillPrisonersIntoTerritory(
   deadStones: Point[],
   blackPrisoners: number,
   whitePrisoners: number
-): { newGrid: StoneType[][]; remainingWhitePrisoners: number; remainingBlackPrisoners: number } {
+): { newGrid: StoneType[][]; remainingBlackPrisoners: number; remainingWhitePrisoners: number } {
   const size = grid.length;
   const newGrid = copyGrid(grid);
 
   // First, remove dead stones from grid
-  let extraWhiteDead = 0;
-  let extraBlackDead = 0;
+  let extraWhiteDead = 0; // White dead stones -> Black's prisoners (黒のアゲハ = 白石)
+  let extraBlackDead = 0; // Black dead stones -> White's prisoners (白のアゲハ = 黒石)
 
   for (const ds of deadStones) {
     if (newGrid[ds.r][ds.c] === 'WHITE') {
@@ -254,35 +256,38 @@ export function fillPrisonersIntoTerritory(
     }
   }
 
-  const totalWhitePrisonersToFill = whitePrisoners + extraWhiteDead; // White stones (白アゲハ) to fill into White Territory
-  const totalBlackPrisonersToFill = blackPrisoners + extraBlackDead; // Black stones (黒アゲハ) to fill into Black Territory
+  // 黒のアゲハ (Black's prisoners) = White stones captured by Black -> Filled into White Territory as WHITE stones
+  const totalBlackPrisonersToFill = blackPrisoners + extraWhiteDead;
+
+  // 白のアゲハ (White's prisoners) = Black stones captured by White -> Filled into Black Territory as BLACK stones
+  const totalWhitePrisonersToFill = whitePrisoners + extraBlackDead;
 
   const { analysis } = analyzeTerritories(newGrid, []);
 
-  // Fill White stones into White Territory points (白地に白石を埋める)
-  let remainingWhiteToFill = totalWhitePrisonersToFill;
+  // Fill 黒のアゲハ (White stones) into White Territory points (白地に白石を埋める)
+  let remainingBlackToFill = totalBlackPrisonersToFill;
   for (const pt of analysis.whiteTerritoryPoints) {
-    if (remainingWhiteToFill <= 0) break;
+    if (remainingBlackToFill <= 0) break;
     if (newGrid[pt.r][pt.c] === 'EMPTY') {
-      newGrid[pt.r][pt.c] = 'WHITE'; // Filled White prisoner into White territory
-      remainingWhiteToFill--;
+      newGrid[pt.r][pt.c] = 'WHITE'; // Fill White stone into White territory
+      remainingBlackToFill--;
     }
   }
 
-  // Fill Black stones into Black Territory points (黒地に黒石を埋める)
-  let remainingBlackToFill = totalBlackPrisonersToFill;
+  // Fill 白のアゲハ (Black stones) into Black Territory points (黒地に黒石を埋める)
+  let remainingWhiteToFill = totalWhitePrisonersToFill;
   for (const pt of analysis.blackTerritoryPoints) {
-    if (remainingBlackToFill <= 0) break;
+    if (remainingWhiteToFill <= 0) break;
     if (newGrid[pt.r][pt.c] === 'EMPTY') {
-      newGrid[pt.r][pt.c] = 'BLACK'; // Filled Black prisoner into Black territory
-      remainingBlackToFill--;
+      newGrid[pt.r][pt.c] = 'BLACK'; // Fill Black stone into Black territory
+      remainingWhiteToFill--;
     }
   }
 
   return {
     newGrid,
-    remainingWhitePrisoners: remainingWhiteToFill,
     remainingBlackPrisoners: remainingBlackToFill,
+    remainingWhitePrisoners: remainingWhiteToFill,
   };
 }
 

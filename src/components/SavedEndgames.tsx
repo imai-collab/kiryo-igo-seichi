@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SavedEndgame, StoneType } from '../types';
 import { PRESET_ENDGAMES } from '../lib/goSeichiEngine';
+import { parseSgf } from '../lib/sgfParser';
 import { Bookmark, Plus, Trash2, Play, Grid, Layers, Sparkles, Download, Upload } from 'lucide-react';
 import { BoardImageUploader } from './BoardImageUploader';
 
@@ -132,8 +133,8 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
     downloadAnchor.remove();
   };
 
-  // Import JSON file
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Import JSON or SGF file
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -141,6 +142,32 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
+
+        // Check if SGF file
+        if (file.name.toLowerCase().endsWith('.sgf') || (content.trim().startsWith('(') && content.includes(';'))) {
+          const parsed = parseSgf(content);
+          const name = parsed.gameName || (parsed.playerBlack && parsed.playerWhite ? `${parsed.playerBlack} vs ${parsed.playerWhite}` : file.name.replace(/\.sgf$/i, ''));
+          const sgfEndgame: SavedEndgame = {
+            id: `imported-sgf-${Date.now()}`,
+            name: name || 'SGF読込終局図',
+            size: parsed.size,
+            grid: parsed.grid,
+            blackPrisoners: parsed.blackPrisoners,
+            whitePrisoners: parsed.whitePrisoners,
+            komi: parsed.komi,
+            createdAt: new Date().toLocaleDateString('ja-JP'),
+            description: `SGFファイル (${file.name}) より復元`,
+          };
+
+          const updatedUserSaved = [sgfEndgame, ...userSaved];
+          setUserSaved(updatedUserSaved);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserSaved));
+          alert(`SGFファイル「${name}」を読み込み、保存リストに追加しました。`);
+          onLoadEndgame(sgfEndgame);
+          return;
+        }
+
+        // Otherwise process as JSON
         const parsed = JSON.parse(content);
         const itemsToImport: any[] = Array.isArray(parsed) ? parsed : [parsed];
 
@@ -162,7 +189,7 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
         }
 
         if (validItems.length === 0) {
-          alert('有効な終局図データが見つかりませんでした。正しいJSONファイルを選択してください。');
+          alert('有効な終局図データが見つかりませんでした。正しいJSONまたはSGFファイルを選択してください。');
           return;
         }
 
@@ -170,9 +197,9 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
         setUserSaved(updatedUserSaved);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserSaved));
         alert(`${validItems.length} 件の終局図データを読み込み、保存リストに追加しました。`);
-      } catch (err) {
-        console.error("Failed to parse JSON file", err);
-        alert('ファイルの読み込みに失敗しました。JSONフォーマットをご確認ください。');
+      } catch (err: any) {
+        console.error("Failed to parse file", err);
+        alert(`ファイルの読み込みに失敗しました: ${err?.message || '形式をご確認ください。'}`);
       }
     };
     reader.readAsText(file);
@@ -214,16 +241,16 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
-            title="JSONファイルからリストを読み込む"
+            title="JSONまたはSGFファイルからリストを読み込む"
           >
             <Upload className="w-3.5 h-3.5" />
-            ファイル読み込み
+            ファイル読み込み (.json / .sgf)
           </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,application/json"
-            onChange={handleImportJSON}
+            accept=".json,.sgf,application/json,text/plain"
+            onChange={handleImportFile}
             className="hidden"
           />
 
