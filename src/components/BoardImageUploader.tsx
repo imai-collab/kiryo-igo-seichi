@@ -49,9 +49,73 @@ export const BoardImageUploader: React.FC<BoardImageUploaderProps> = ({
 
   // Common error state
   const [error, setError] = useState<string | null>(null);
+  const [clipboardStatus, setClipboardStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const sgfFileInputRef = useRef<HTMLInputElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Clipboard Direct Paste Handler ---
+  const handlePasteFromClipboardDirect = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setClipboardStatus(null);
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setClipboardStatus({
+          type: 'error',
+          message: 'お使いのブラウザは直接の読み取り非対応です。入力画面から貼り付けてください。'
+        });
+        setActiveTab('sgf_paste');
+        setIsOpen(true);
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setClipboardStatus({
+          type: 'error',
+          message: 'クリップボードが空です。SGFテキストをコピーしてから押してください。'
+        });
+        return;
+      }
+
+      const parsed = parseSgf(text);
+      onBoardParsed(
+        parsed.grid,
+        parsed.size,
+        { black: parsed.blackPrisoners, white: parsed.whitePrisoners },
+        parsed.komi
+      );
+      setClipboardStatus({
+        type: 'success',
+        message: 'クリップボードからSGFを読み込みました！'
+      });
+      setTimeout(() => setClipboardStatus(null), 4000);
+    } catch (err: any) {
+      console.error('Clipboard direct paste error:', err);
+      setClipboardStatus({
+        type: 'error',
+        message: err.message || 'クリップボード内のテキストをSGFとして解析できませんでした。'
+      });
+      setTimeout(() => setClipboardStatus(null), 5000);
+    }
+  };
+
+  const handlePasteFromClipboardModal = async () => {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setError('ブラウザのクリップボード取得権限がないか非対応です。手動(Ctrl+V)で貼り付けてください。');
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setError('クリップボードが空です。SGFテキストをコピーしてからお試しください。');
+        return;
+      }
+      setSgfText(text);
+      setError(null);
+    } catch (err: any) {
+      setError('クリップボードの取得に失敗しました。手動(Ctrl+V)で貼り付けてください。');
+    }
+  };
 
   // --- SGF File Handlers ---
   const handleSgfFileSelect = (file: File) => {
@@ -252,28 +316,57 @@ AW[dd][de][df][ee][fe][ge][gd]
     <>
       {/* Trigger Component (Card / Inline / Button) */}
       {variant === 'card' ? (
-        <div
-          onClick={() => setIsOpen(true)}
-          className="w-full p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border-2 border-dashed border-amber-400 hover:border-amber-600 rounded-2xl cursor-pointer transition-all flex items-center justify-between group shadow-xs"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-amber-600 to-amber-700 text-white rounded-xl shadow-md group-hover:scale-105 transition-transform">
+        <div className="w-full p-4.5 sm:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-dashed border-amber-400/80 rounded-2xl transition-all shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 bg-gradient-to-br from-amber-600 to-amber-700 text-white rounded-xl shadow-md shrink-0">
               <FileText className="w-6 h-6" />
             </div>
-            <div className="text-left">
-              <h4 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                SGF読み込み / 画像読み込み（盤面自動復元）
-              </h4>
-              <p className="text-xs text-amber-900/80 mt-0.5">
-                SGFファイル(.sgf)のアップロード、SGFテキストの貼り付け、または画像AI認識から盤面を一発読み込みできます
-              </p>
+            <div className="text-left space-y-2.5 flex-1">
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-amber-950 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  SGF読み込み / 画像読み込み（盤面自動復元）
+                </h4>
+                <p className="text-xs text-amber-900/80 mt-0.5 leading-relaxed">
+                  SGFファイル(.sgf)のアップロード、SGFテキストの貼り付け、または画像AI認識から盤面を一発読み込みできます
+                </p>
+              </div>
+
+              {/* Action Buttons Container placed directly under description */}
+              <div className="flex items-center gap-2.5 flex-wrap pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(true)}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 hover:scale-[1.02] cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-amber-200" />
+                  データを読み込む
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePasteFromClipboardDirect}
+                  className="px-4 py-2 bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 hover:scale-[1.02] cursor-pointer"
+                  title="クリップボードのSGFテキストを読み込み"
+                >
+                  <Clipboard className="w-4 h-4 text-amber-600" />
+                  クリップボード
+                </button>
+
+                {clipboardStatus && (
+                  <span
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border animate-fade-in ${
+                      clipboardStatus.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}
+                  >
+                    {clipboardStatus.message}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-
-          <button className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all shrink-0">
-            データを読み込む
-          </button>
         </div>
       ) : variant === 'inline' ? (
         <button
@@ -432,9 +525,17 @@ AW[dd][de][df][ee][fe][ge][gd]
             {/* --- TAB 2: SGF TEXT PASTE --- */}
             {activeTab === 'sgf_paste' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-1">
                   <label className="text-xs font-bold text-neutral-700">SGF形式テキストを入力 / 貼り付け:</label>
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handlePasteFromClipboardModal}
+                      className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded font-bold transition-all flex items-center gap-1 shadow-2xs"
+                    >
+                      <Clipboard className="w-3 h-3 text-amber-200" />
+                      クリップボード貼り付け
+                    </button>
                     <button
                       type="button"
                       onClick={() => insertSampleSgf(19)}

@@ -56,17 +56,15 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
       {/* Main Breakdown Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Black Score Box */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isBlackWinner ? 'bg-neutral-900 text-white border-neutral-800 shadow-md ring-2 ring-neutral-700' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
-        }`}>
-          <div className="flex items-center justify-between mb-3 border-b border-neutral-200/30 pb-2">
-            <span className="font-bold text-base flex items-center gap-2">
+        {/* Black Score Box - Always Black Background */}
+        <div className="p-5 rounded-2xl bg-neutral-900 text-white border-2 border-neutral-800 shadow-md">
+          <div className="flex items-center justify-between mb-3 border-b border-neutral-700/60 pb-2">
+            <span className="font-bold text-base flex items-center gap-2 text-white">
               <div className="w-4 h-4 rounded-full bg-black border border-neutral-500" />
               黒の地（Black Territory）
             </span>
             {isBlackWinner && (
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-neutral-950 text-[11px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-neutral-950 text-[11px] font-bold shadow-xs">
                 勝利 (WIN)
               </span>
             )}
@@ -74,16 +72,16 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
 
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="opacity-75">1. 盤上の元の黒地:</span>
-              <strong className="font-mono text-sm">{analysis.blackTerritoryCount} 目</strong>
+              <span className="text-neutral-300">1. 盤上の元の黒地:</span>
+              <strong className="font-mono text-sm text-white">{analysis.blackTerritoryCount} 目</strong>
             </div>
             <div className="flex justify-between text-rose-400">
-              <span className="opacity-75">2. 埋め込んだ白アゲハ (黒石):</span>
+              <span>2. 埋め込んだ白アゲハ (黒石):</span>
               <strong className="font-mono text-sm">- {whitePrisoners} 目</strong>
             </div>
-            <hr className="border-neutral-200/20 my-1" />
+            <hr className="border-neutral-700/60 my-1" />
             <div className="flex justify-between items-baseline pt-1">
-              <span className="font-bold text-sm">正味の黒地計:</span>
+              <span className="font-bold text-sm text-white">正味の黒地計:</span>
               <span className="text-2xl font-black font-mono text-amber-400">
                 {analysis.netBlackTerritory} <span className="text-xs font-normal">目</span>
               </span>
@@ -91,17 +89,15 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
           </div>
         </div>
 
-        {/* White Score Box */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isWhiteWinner ? 'bg-neutral-900 text-white border-neutral-800 shadow-md ring-2 ring-neutral-700' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
-        }`}>
-          <div className="flex items-center justify-between mb-3 border-b border-neutral-200/30 pb-2">
-            <span className="font-bold text-base flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-white border border-neutral-400 shadow-inner" />
+        {/* White Score Box - Always White Background with Thick Black Border */}
+        <div className="p-5 rounded-2xl bg-white text-neutral-900 border-2 border-neutral-900 shadow-md">
+          <div className="flex items-center justify-between mb-3 border-b border-neutral-200 pb-2">
+            <span className="font-bold text-base flex items-center gap-2 text-neutral-900">
+              <div className="w-4 h-4 rounded-full bg-white border-2 border-neutral-400 shadow-inner" />
               白の地（White Territory）
             </span>
             {isWhiteWinner && (
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-neutral-950 text-[11px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[11px] font-bold shadow-xs">
                 勝利 (WIN)
               </span>
             )}
@@ -109,21 +105,21 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
 
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="opacity-75">1. 盤上の元の白地:</span>
-              <strong className="font-mono text-sm">{analysis.whiteTerritoryCount} 目</strong>
+              <span className="text-neutral-600">1. 盤上の元の白地:</span>
+              <strong className="font-mono text-sm text-neutral-900">{analysis.whiteTerritoryCount} 目</strong>
             </div>
-            <div className="flex justify-between text-rose-400">
-              <span className="opacity-75">2. 埋め込んだ黒アゲハ (白石):</span>
+            <div className="flex justify-between text-rose-600">
+              <span>2. 埋め込んだ黒アゲハ (白石):</span>
               <strong className="font-mono text-sm">- {blackPrisoners} 目</strong>
             </div>
-            <div className="flex justify-between text-emerald-400">
-              <span className="opacity-75">3. コミ加算:</span>
+            <div className="flex justify-between text-emerald-600">
+              <span>3. コミ加算:</span>
               <strong className="font-mono text-sm">+ {komi} 目</strong>
             </div>
-            <hr className="border-neutral-200/20 my-1" />
+            <hr className="border-neutral-200 my-1" />
             <div className="flex justify-between items-baseline pt-1">
-              <span className="font-bold text-sm">正味の白地計（コミ込）:</span>
-              <span className="text-2xl font-black font-mono text-amber-400">
+              <span className="font-bold text-sm text-neutral-900">正味の白地計（コミ込）:</span>
+              <span className="text-2xl font-black font-mono text-amber-500">
                 {analysis.finalWhiteScore} <span className="text-xs font-normal">目</span>
               </span>
             </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SavedEndgame, StoneType } from '../types';
 import { PRESET_ENDGAMES } from '../lib/goSeichiEngine';
 import { parseSgf } from '../lib/sgfParser';
-import { Bookmark, Plus, Trash2, Play, Grid, Layers, Sparkles, Download, Upload } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Play, Grid, Layers, Sparkles, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import { BoardImageUploader } from './BoardImageUploader';
 
 interface SavedEndgamesProps {
@@ -27,6 +27,7 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
   onLoadEndgame,
   onBoardParsedImage,
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [userSaved, setUserSaved] = useState<SavedEndgame[]>([]);
   const [deletedPresetIds, setDeletedPresetIds] = useState<string[]>([]);
   const [saveName, setSaveName] = useState('');
@@ -207,179 +208,219 @@ export const SavedEndgames: React.FC<SavedEndgamesProps> = ({
   };
 
   const activePresets = PRESET_ENDGAMES.filter(p => !deletedPresetIds.includes(p.id));
+  const totalCount = activePresets.length + userSaved.length;
 
   return (
-    <div className="w-full bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-sm space-y-4">
-      {/* Header action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-neutral-800 flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-amber-600" />
-            終局図サンプル＆保存リスト
-          </h3>
-          {deletedPresetIds.length > 0 && (
-            <button
-              onClick={handleRestorePresets}
-              className="text-[11px] text-amber-700 hover:text-amber-900 underline font-medium"
-            >
-              初期サンプルを復元
-            </button>
-          )}
+    <div className="w-full bg-white rounded-2xl border border-neutral-200/80 shadow-xs transition-all overflow-hidden">
+      {/* Collapsible Header Bar / Toggle Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-neutral-50/80 transition-colors text-left focus:outline-none cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-amber-100/80 text-amber-800 rounded-lg shrink-0">
+            <Bookmark className="w-4 h-4 text-amber-700" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-neutral-800">
+                終局図サンプル＆保存リスト
+              </span>
+              <span className="text-xs font-semibold px-2 py-0.5 bg-amber-100/80 text-amber-900 rounded-full">
+                {totalCount} 件
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-500 mt-0.5 hidden sm:block">
+              サンプル盤面の読み込み、自作終局図の保存・SGF/JSONファイルの入出力
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* File Export/Import Buttons */}
-          <button
-            onClick={handleExportJSON}
-            className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
-            title="リスト全体をJSONファイルとして保存"
-          >
-            <Download className="w-3.5 h-3.5" />
-            ファイル出力
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
-            title="JSONまたはSGFファイルからリストを読み込む"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            ファイル読み込み (.json / .sgf)
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.sgf,application/json,text/plain"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-
-          {onBoardParsedImage && (
-            <BoardImageUploader
-              variant="inline"
-              boardSize={boardSize}
-              onBoardParsed={onBoardParsedImage}
-            />
-          )}
-
-          {!isSaving ? (
-            <button
-              onClick={() => setIsSaving(true)}
-              className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              今の盤面を保存
-            </button>
+        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100/90 px-3 py-1.5 rounded-lg border border-amber-200/80 transition-colors shrink-0">
+          <span>{isOpen ? 'たたむ' : '表示する'}</span>
+          {isOpen ? (
+            <ChevronUp className="w-4 h-4 text-amber-700" />
           ) : (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="終局図の名前..."
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                className="px-2.5 py-1 text-xs border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
-              <button
-                onClick={handleSaveCurrent}
-                className="px-2.5 py-1 bg-amber-600 text-white rounded-md text-xs font-bold hover:bg-amber-700"
-              >
-                保存
-              </button>
-              <button
-                onClick={() => setIsSaving(false)}
-                className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800"
-              >
-                キャンセル
-              </button>
-            </div>
+            <ChevronDown className="w-4 h-4 text-amber-700" />
           )}
         </div>
-      </div>
+      </button>
 
-      {/* Preset List */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {activePresets.map((preset) => (
-          <div
-            key={preset.id}
-            className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-amber-400 transition-all flex flex-col justify-between gap-2 relative group"
-          >
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-bold text-neutral-900 line-clamp-1">{preset.name}</span>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
-                    {preset.size}×{preset.size}
-                  </span>
-                  <button
-                    onClick={() => handleExportSingleItem(preset)}
-                    className="text-neutral-400 hover:text-amber-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
-                    title="この終局図をJSONファイルで書き出す"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeletePreset(preset.id)}
-                    className="text-neutral-400 hover:text-red-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
-                    title="サンプルを削除"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-              <p className="text-[11px] text-neutral-500 mt-1 line-clamp-2">
-                {preset.description}
-              </p>
+      {/* Expanded Section */}
+      {isOpen && (
+        <div className="p-5 pt-3 border-t border-neutral-100 space-y-4">
+          {/* Header action bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-500 font-medium">
+                保存済みサンプルから読み込みまたは独自の盤面を登録できます。
+              </span>
+              {deletedPresetIds.length > 0 && (
+                <button
+                  onClick={handleRestorePresets}
+                  className="text-[11px] text-amber-700 hover:text-amber-900 underline font-medium"
+                >
+                  初期サンプルを復元
+                </button>
+              )}
             </div>
 
-            <button
-              onClick={() => onLoadEndgame(preset)}
-              className="w-full py-1.5 bg-white hover:bg-amber-50 text-amber-900 border border-neutral-200 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 mt-1 shadow-2xs"
-            >
-              <Play className="w-3 h-3 text-amber-600 fill-amber-600" />
-              この終局図を読み込む
-            </button>
-          </div>
-        ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* File Export/Import Buttons */}
+              <button
+                onClick={handleExportJSON}
+                className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
+                title="リスト全体をJSONファイルとして保存"
+              >
+                <Download className="w-3.5 h-3.5" />
+                ファイル出力
+              </button>
 
-        {/* Custom User Saved Items */}
-        {userSaved.map((item) => (
-          <div
-            key={item.id}
-            className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 hover:border-amber-400 transition-all flex flex-col justify-between gap-2"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-950 line-clamp-1">{item.name}</span>
-                <div className="flex items-center gap-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 border border-neutral-200"
+                title="JSONまたはSGFファイルからリストを読み込む"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                ファイル読み込み (.json / .sgf)
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.sgf,application/json,text/plain"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+
+              {onBoardParsedImage && (
+                <BoardImageUploader
+                  variant="inline"
+                  boardSize={boardSize}
+                  onBoardParsed={onBoardParsedImage}
+                />
+              )}
+
+              {!isSaving ? (
+                <button
+                  onClick={() => setIsSaving(true)}
+                  className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  今の盤面を保存
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="終局図の名前..."
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    className="px-2.5 py-1 text-xs border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
                   <button
-                    onClick={() => handleExportSingleItem(item)}
-                    className="text-neutral-400 hover:text-amber-700 p-0.5"
-                    title="この終局図をJSONファイルで書き出す"
+                    onClick={handleSaveCurrent}
+                    className="px-2.5 py-1 bg-amber-600 text-white rounded-md text-xs font-bold hover:bg-amber-700"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    保存
                   </button>
                   <button
-                    onClick={() => handleDeleteUserSaved(item.id)}
-                    className="text-neutral-400 hover:text-red-600 p-0.5"
-                    title="削除"
+                    onClick={() => setIsSaving(false)}
+                    className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    キャンセル
                   </button>
                 </div>
-              </div>
-              <span className="text-[10px] text-neutral-400">{item.createdAt}</span>
+              )}
             </div>
-
-            <button
-              onClick={() => onLoadEndgame(item)}
-              className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 mt-1"
-            >
-              <Play className="w-3 h-3 fill-white" />
-              読み込む
-            </button>
           </div>
-        ))}
-      </div>
+
+          {/* Preset List */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {activePresets.map((preset) => (
+              <div
+                key={preset.id}
+                className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-amber-400 transition-all flex flex-col justify-between gap-2 relative group"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold text-neutral-900 line-clamp-1">{preset.name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
+                        {preset.size}×{preset.size}
+                      </span>
+                      <button
+                        onClick={() => handleExportSingleItem(preset)}
+                        className="text-neutral-400 hover:text-amber-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
+                        title="この終局図をJSONファイルで書き出す"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePreset(preset.id)}
+                        className="text-neutral-400 hover:text-red-600 p-1 rounded-md hover:bg-neutral-200/50 transition-colors"
+                        title="サンプルを削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-1 line-clamp-2">
+                    {preset.description}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => onLoadEndgame(preset)}
+                  className="w-full py-1.5 bg-white hover:bg-amber-50 text-amber-900 border border-neutral-200 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 mt-1 shadow-2xs"
+                >
+                  <Play className="w-3 h-3 text-amber-600 fill-amber-600" />
+                  この終局図を読み込む
+                </button>
+              </div>
+            ))}
+
+            {/* Custom User Saved Items */}
+            {userSaved.map((item) => (
+              <div
+                key={item.id}
+                className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 hover:border-amber-400 transition-all flex flex-col justify-between gap-2"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-950 line-clamp-1">{item.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleExportSingleItem(item)}
+                        className="text-neutral-400 hover:text-amber-700 p-0.5"
+                        title="この終局図をJSONファイルで書き出す"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUserSaved(item.id)}
+                        className="text-neutral-400 hover:text-red-600 p-0.5"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-neutral-400">{item.createdAt}</span>
+                </div>
+
+                <button
+                  onClick={() => onLoadEndgame(item)}
+                  className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 mt-1"
+                >
+                  <Play className="w-3 h-3 fill-white" />
+                  読み込む
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
