@@ -37,6 +37,7 @@ export default function App() {
 
   const [selectedStonePoint, setSelectedStonePoint] = useState<Point | null>(null);
   const [rearrangeStatus, setRearrangeStatus] = useState<{ type: 'success' | 'warning' | 'error' | 'info'; message: string } | null>(null);
+  const [deadStoneStatus, setDeadStoneStatus] = useState<{ type: 'success' | 'warning' | 'error' | 'info'; message: string } | null>(null);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState<boolean>(false);
   const [aiCommentary, setAiCommentary] = useState<string | null>(null);
 
@@ -107,6 +108,8 @@ export default function App() {
     setPhase('SETUP');
     setSelectedStonePoint(null);
     setAiCommentary(null);
+    setDeadStoneStatus(null);
+    setRearrangeStatus(null);
   };
 
   // Handle intersection clicks based on active Phase
@@ -228,6 +231,29 @@ export default function App() {
   const handleAutoDetectDeadStones = () => {
     const detected = autoDetectDeadStones(grid);
     setDeadStones(detected);
+    setPhase('DEAD_STONES');
+
+    if (detected.length === 0) {
+      setDeadStoneStatus({
+        type: 'info',
+        message: 'AI死に石自動判定: 盤上に死に石（相手の地の中に包囲された石）は検出されませんでした。'
+      });
+    } else {
+      const blackDead = detected.filter(p => grid[p.r][p.c] === 'BLACK');
+      const whiteDead = detected.filter(p => grid[p.r][p.c] === 'WHITE');
+
+      const bCoords = blackDead.map(p => `(${p.r + 1},${p.c + 1})`).join(' ');
+      const wCoords = whiteDead.map(p => `(${p.r + 1},${p.c + 1})`).join(' ');
+
+      const parts: string[] = [];
+      if (blackDead.length > 0) parts.push(`黒の死に石 ${blackDead.length}個 ${bCoords}`);
+      if (whiteDead.length > 0) parts.push(`白の死に石 ${whiteDead.length}個 ${wCoords}`);
+
+      setDeadStoneStatus({
+        type: 'success',
+        message: `AI死に石自動判定: 合計 ${detected.length} 個の死に石を検出して（×）マークしました！ [ ${parts.join(' / ')} ]`
+      });
+    }
   };
 
   // Auto-Fill Prisoners into Territory
@@ -237,6 +263,11 @@ export default function App() {
     setDeadStones([]); // Dead stones were converted and placed as prisoners
     setBlackPrisoners(filled.remainingBlackPrisoners);
     setWhitePrisoners(filled.remainingWhitePrisoners);
+    setPhase('REARRANGE');
+    setRearrangeStatus({
+      type: 'info',
+      message: 'アゲハ（持ちアゲハおよび死に石）を地に自動埋め込みしました！続いて石を移動・交換して地を整地（整形）できます。'
+    });
   };
 
   // Auto Rearrange Territory
@@ -351,6 +382,7 @@ export default function App() {
               dameCount={territoryAnalysis.analysis.dameCount}
               isAnalyzing={isAnalyzingAI}
               rearrangeStatus={rearrangeStatus}
+              deadStoneStatus={deadStoneStatus}
               onToolChange={setCurrentTool}
               onBoardParsedImage={handleBoardParsedFromData}
               onSizeChange={handleSizeChange}

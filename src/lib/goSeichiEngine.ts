@@ -191,45 +191,122 @@ export function autoDetectDeadStones(grid: StoneType[][]): Point[] {
   const size = grid.length;
   const deadStones: Point[] = [];
 
-  // 1. Identify isolated stones enclosed inside opponent territory without 2 eyes
-  const initialRegions = analyzeTerritories(grid, []).regions;
+  // 1. Group all stones into connected chains/groups
+  const visited = Array.from({ length: size }, () => Array(size).fill(false));
+  const groups: { color: 'BLACK' | 'WHITE'; points: Point[]; liberties: Point[] }[] = [];
 
-  for (const reg of initialRegions) {
-    // If region is Black Territory, check if there are White stones inside or adjacent that are isolated
-    if (reg.type === 'BLACK_TERRITORY') {
-      // Find white stones surrounded by this black region
-      for (const pt of reg.points) {
-        for (const [dr, dc] of DIRECTIONS) {
-          const nr = pt.r + dr;
-          const nc = pt.c + dc;
-          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-            if (grid[nr][nc] === 'WHITE') {
-              if (!deadStones.some(p => p.r === nr && p.c === nc)) {
-                // Check if this white group is small (e.g. <= 3 stones) inside large black territory
-                deadStones.push({ r: nr, c: nc });
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] !== 'EMPTY' && !visited[r][c]) {
+        const color = grid[r][c] as 'BLACK' | 'WHITE';
+        const points: Point[] = [];
+        const libertiesSet = new Set<string>();
+        const queue: Point[] = [{ r, c }];
+        visited[r][c] = true;
+
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          points.push(curr);
+
+          for (const [dr, dc] of DIRECTIONS) {
+            const nr = curr.r + dr;
+            const nc = curr.c + dc;
+            if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+              if (grid[nr][nc] === 'EMPTY') {
+                libertiesSet.add(`${nr},${nc}`);
+              } else if (grid[nr][nc] === color && !visited[nr][nc]) {
+                visited[nr][nc] = true;
+                queue.push({ r: nr, c: nc });
               }
             }
           }
         }
-      }
-    } else if (reg.type === 'WHITE_TERRITORY') {
-      for (const pt of reg.points) {
-        for (const [dr, dc] of DIRECTIONS) {
-          const nr = pt.r + dr;
-          const nc = pt.c + dc;
-          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-            if (grid[nr][nc] === 'BLACK') {
-              if (!deadStones.some(p => p.r === nr && p.c === nc)) {
-                deadStones.push({ r: nr, c: nc });
-              }
-            }
-          }
-        }
+
+        const liberties: Point[] = Array.from(libertiesSet).map(s => {
+          const [lr, lc] = s.split(',').map(Number);
+          return { r: lr, c: lc };
+        });
+
+        groups.push({ color, points, liberties });
       }
     }
   }
 
-  return deadStones;
+  // 2. Identify dead stone groups
+  for (const grp of groups) {
+    // Condition A: 0 liberties -> Captured stones remaining on board
+    if (grp.liberties.length === 0) {
+      deadStones.push(...grp.points);
+      continue;
+    }
+
+    // Condition B: Group is small (<= 6 stones) and enclosed inside opponent territory
+    if (grp.points.length <= 6) {
+      const color = grp.color;
+      const opponentColor = color === 'BLACK' ? 'WHITE' : 'BLACK';
+
+      // BFS outwards from grp.points & grp.liberties
+      const areaVisited = Array.from({ length: size }, () => Array(size).fill(false));
+      const areaQueue: Point[] = [...grp.points, ...grp.liberties];
+
+      for (const p of areaQueue) {
+        areaVisited[p.r][p.c] = true;
+      }
+
+      let reachesLargeFriendlyGroup = false;
+      let touchesOpponent = false;
+      let emptySpaceCount = 0;
+
+      while (areaQueue.length > 0) {
+        const curr = areaQueue.shift()!;
+        if (grid[curr.r][curr.c] === 'EMPTY') {
+          emptySpaceCount++;
+        }
+
+        for (const [dr, dc] of DIRECTIONS) {
+          const nr = curr.r + dr;
+          const nc = curr.c + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+            const val = grid[nr][nc];
+            if (val === 'EMPTY') {
+              if (!areaVisited[nr][nc]) {
+                areaVisited[nr][nc] = true;
+                areaQueue.push({ r: nr, c: nc });
+              }
+            } else if (val === opponentColor) {
+              touchesOpponent = true;
+            } else if (val === color) {
+              const isSelf = grp.points.some(p => p.r === nr && p.c === nc);
+              if (!isSelf) {
+                const otherGrp = groups.find(g => g.color === color && g.points.some(p => p.r === nr && p.c === nc));
+                if (otherGrp && otherGrp.points.length >= 7) {
+                  reachesLargeFriendlyGroup = true;
+                } else if (!areaVisited[nr][nc]) {
+                  areaVisited[nr][nc] = true;
+                  areaQueue.push({ r: nr, c: nc });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If enclosed by opponent and has no access to a main friendly group
+      if (touchesOpponent && !reachesLargeFriendlyGroup && emptySpaceCount <= 12) {
+        deadStones.push(...grp.points);
+      }
+    }
+  }
+
+  // Deduplicate points
+  const uniqueDeadStones: Point[] = [];
+  for (const ds of deadStones) {
+    if (!uniqueDeadStones.some(p => p.r === ds.r && p.c === ds.c)) {
+      uniqueDeadStones.push(ds);
+    }
+  }
+
+  return uniqueDeadStones;
 }
 
 // Perform Auto-Fill Prisoners (アゲハ自動埋め)

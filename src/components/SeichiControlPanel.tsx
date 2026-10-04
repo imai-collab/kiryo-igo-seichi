@@ -28,6 +28,7 @@ interface SeichiControlPanelProps {
   dameCount?: number;
   isAnalyzing: boolean;
   rearrangeStatus?: { type: 'success' | 'warning' | 'error' | 'info'; message: string } | null;
+  deadStoneStatus?: { type: 'success' | 'warning' | 'error' | 'info'; message: string } | null;
   onToolChange: (tool: 'BLACK' | 'WHITE' | 'ERASER' | 'DEAD_STONE') => void;
   onBoardParsedImage?: (grid: StoneType[][], parsedSize: number, detectedPrisoners?: { black: number; white: number }) => void;
   onSizeChange: (size: number) => void;
@@ -51,6 +52,7 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
   dameCount = 0,
   isAnalyzing,
   rearrangeStatus,
+  deadStoneStatus,
   onToolChange,
   onBoardParsedImage,
   onSizeChange,
@@ -269,10 +271,18 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end">
+          <div className="pt-2 flex flex-wrap justify-between items-center gap-2">
+            <button
+              onClick={onAutoDetectDeadStones}
+              className="px-4 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              AI 死に石自動判定を実行
+            </button>
+
             <button
               onClick={() => onPhaseChange('DEAD_STONES')}
-              className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02]"
+              className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] ml-auto"
             >
               終局図を確定し、死に石指定へ進む
               <ArrowRight className="w-4 h-4" />
@@ -317,6 +327,24 @@ export const SeichiControlPanel: React.FC<SeichiControlPanelProps> = ({
               <span className="text-amber-950 font-extrabold">{dameCount} 点 <span className="text-[10px] font-bold text-amber-800">（目立つ黄色で強調表示中）</span></span>
             </div>
           </div>
+
+          {deadStoneStatus && (
+            <div className={`p-3 rounded-lg text-xs font-semibold flex items-center gap-2 border shadow-sm transition-all ${
+              deadStoneStatus.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                : deadStoneStatus.type === 'error'
+                ? 'bg-rose-50 text-rose-900 border-rose-300'
+                : deadStoneStatus.type === 'warning'
+                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : 'bg-blue-50 text-blue-900 border-blue-300'
+            }`}>
+              {deadStoneStatus.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+              {deadStoneStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+              {deadStoneStatus.type === 'warning' && <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />}
+              {deadStoneStatus.type === 'info' && <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />}
+              <span>{deadStoneStatus.message}</span>
+            </div>
+          )}
 
           <div className="flex justify-between items-center pt-2">
             <button
